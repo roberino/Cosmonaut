@@ -3,7 +3,7 @@
 namespace Cosmonaut.Attributes
 {
     [AttributeUsage(AttributeTargets.Class)]
-    public class SharedCosmosCollectionAttribute : Attribute
+    public class SharedCosmosCollectionAttribute : Attribute, ISharedCosmosCollectionInfo
     {
         public string SharedCollectionName { get; }
 

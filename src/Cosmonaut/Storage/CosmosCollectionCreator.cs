@@ -1,24 +1,20 @@
-﻿using System;
-using System.Threading.Tasks;
-using Cosmonaut.Configuration;
-using Cosmonaut.Extensions;
+﻿using Cosmonaut.Configuration;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
+using System.Threading.Tasks;
 
 namespace Cosmonaut.Storage
 {
     internal class CosmosCollectionCreator : ICollectionCreator
     {
         private readonly ICosmonautClient _cosmonautClient;
+        private readonly IEntityConfigurationProvider _entityConfigurationProvider;
 
-        public CosmosCollectionCreator(ICosmonautClient cosmonautClient)
+        public CosmosCollectionCreator(ICosmonautClient cosmonautClient,
+            IEntityConfigurationProvider entityConfigurationProvider = null)
         {
             _cosmonautClient = cosmonautClient;
-        }
-
-        public CosmosCollectionCreator(IDocumentClient documentClient)
-        {
-            _cosmonautClient = new CosmonautClient(documentClient);
+            _entityConfigurationProvider = entityConfigurationProvider ?? DefaultEntityConfigurationProvider.Instance;
         }
 
         public async Task<bool> EnsureCreatedAsync<TEntity>(
@@ -40,7 +36,12 @@ namespace Cosmonaut.Storage
                 IndexingPolicy = indexingPolicy ?? CosmosConstants.DefaultIndexingPolicy
             };
 
-            SetPartitionKeyDefinitionForCollection(typeof(TEntity), newCollection);
+            var pkd = _entityConfigurationProvider.GetEntityCollectionMapping<TEntity>();
+
+            if (pkd.PartitionKeyDefinition != null)
+            {
+                newCollection.PartitionKey = pkd.PartitionKeyDefinition;
+            }
 
             var finalCollectionThroughput = databaseHasOffer ? onDatabaseBehaviour == ThroughputBehaviour.DedicateCollectionThroughput ? (int?)collectionThroughput : null : collectionThroughput;
 
@@ -50,14 +51,6 @@ namespace Cosmonaut.Storage
             });
 
             return newCollection != null;
-        }
-
-        private static void SetPartitionKeyDefinitionForCollection(Type entityType, DocumentCollection collection)
-        {
-            var partitionKey = entityType.GetPartitionKeyDefinitionForEntity();
-
-            if (partitionKey != null)
-                collection.PartitionKey = partitionKey;
         }
     }
 }

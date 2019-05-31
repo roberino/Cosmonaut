@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Cosmonaut.Configuration;
 using Cosmonaut.Extensions;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.ChangeFeedProcessor.FeedProcessing;
@@ -40,9 +41,9 @@ namespace Cosmonaut.WebJobs.Extensions.Trigger
 
         public Task ProcessChangesAsync(IChangeFeedObserverContext context, IReadOnlyList<Document> docs, CancellationToken cancellationToken)
         {
-            var entityType = typeof(T);
-            var isSharedCollection = entityType.UsesSharedCollection();
-            var sharedCollectionEntityName = isSharedCollection ? entityType.GetSharedCollectionEntityName() : string.Empty;
+            var mapping = DefaultEntityConfigurationProvider.DefaultMapping<T>();
+
+            var sharedCollectionEntityName = mapping.IsShared ? mapping.SharedCollectionEntityName : string.Empty;
 
             if (string.IsNullOrEmpty(sharedCollectionEntityName))
             {

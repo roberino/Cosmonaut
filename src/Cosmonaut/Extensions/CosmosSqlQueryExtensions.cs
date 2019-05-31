@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Cosmonaut.Configuration;
 using Cosmonaut.Exceptions;
 using Cosmonaut.Internal;
 using Microsoft.Azure.Documents;
@@ -16,16 +17,16 @@ namespace Cosmonaut.Extensions
 
         private static readonly IEnumerable<string> PostSelectCosmosSqlOperators = new[] {"where", "order", "join", "as", "select", "by"};
 
-        internal static string EnsureQueryIsCollectionSharingFriendly<TEntity>(this string sql) where TEntity : class
+        internal static string EnsureQueryIsCollectionSharingFriendly(this EntityCollectionMapping entityMapping, string sql)
         {
-            var isSharedQuery = typeof(TEntity).UsesSharedCollection();
+            var isSharedQuery = entityMapping.IsShared;
 
             if (!isSharedQuery)
                 return sql;
 
             var identifier = GetCollectionIdentifier(sql);
 
-            var cosmosEntityNameValue = $"{typeof(TEntity).GetSharedCollectionEntityName()}";
+            var cosmosEntityNameValue = entityMapping.SharedCollectionEntityName;
 
             var hasExistingWhereClause = sql.IndexOf(" where ", StringComparison.OrdinalIgnoreCase) >= 0;
 

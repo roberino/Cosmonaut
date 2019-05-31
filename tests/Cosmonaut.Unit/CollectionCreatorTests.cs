@@ -1,16 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
-using Cosmonaut.Exceptions;
-using Cosmonaut.Extensions;
-using Cosmonaut.Storage;
+﻿using Cosmonaut.Storage;
 using Cosmonaut.Testing;
 using FluentAssertions;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Cosmonaut.Unit
@@ -46,59 +44,6 @@ namespace Cosmonaut.Unit
 
             // Assert
             result.Should().BeTrue();
-        }
-
-        [Fact]
-        public void GetSharedCollectionNameReturnsName()
-        {
-            // Arrange
-            var sharedCollectionDummy = new DummySharedCollection();
-            var expectedName = "shared";
-
-            // Act
-            var name = sharedCollectionDummy.GetType().GetSharedCollectionName();
-
-            // Assert
-            name.Should().Be(expectedName);
-        }
-
-        [Fact]
-        public void GetSharedCollectionNameEmptyNameThrowsException()
-        {
-            // Arrange
-            var sharedCollectionDummy = new DummySharedCollectionEmpty();
-
-            // Act
-            var action = new Action(() => sharedCollectionDummy.GetType().GetSharedCollectionName());
-
-            // Assert
-            action.Should().Throw<SharedCollectionNameMissingException>();
-        }
-
-        [Fact]
-        public void UsesSharedCollectionWithAttributeNoImpl()
-        {
-            // Arrange
-            var dummy = new DummyWithAttributeNoImpl();
-
-            // Act
-            var action = new Action(() => dummy.GetType().UsesSharedCollection());
-
-            // Assert
-            action.Should().Throw<SharedEntityDoesNotImplementExcepction>();
-        }
-
-        [Fact]
-        public void UsesSharedCollectionWithImplNoAttribute()
-        {
-            // Arrange
-            var dummy = new DummyImplNoAttribute();
-
-            // Act
-            var action = new Action(()=> dummy.GetType().UsesSharedCollection());
-
-            // Assert
-            action.Should().Throw<SharedEntityDoesNotHaveAttribute>();
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Cosmonaut.Configuration;
 using Cosmonaut.Extensions;
 using Cosmonaut.Response;
 using Cosmonaut.Storage;
@@ -14,7 +15,7 @@ namespace Cosmonaut
 {
     public sealed class CosmosStore<TEntity> : ICosmosStore<TEntity> where TEntity : class
     {
-        public bool IsShared { get; internal set; }
+        public bool IsShared => EntityCollectionMapping.IsShared;
 
         public string CollectionName { get; private set; }
         
@@ -23,6 +24,8 @@ namespace Cosmonaut
         public CosmosStoreSettings Settings { get; }
         
         public ICosmonautClient CosmonautClient { get; }
+
+        internal EntityCollectionMapping EntityCollectionMapping { get; }
 
         private readonly IDatabaseCreator _databaseCreator;
         private readonly ICollectionCreator _collectionCreator;
@@ -38,7 +41,7 @@ namespace Cosmonaut
             var documentClient = DocumentClientFactory.CreateDocumentClient(settings);
             CosmonautClient = new CosmonautClient(documentClient, Settings.InfiniteRetries);
             if (string.IsNullOrEmpty(Settings.DatabaseName)) throw new ArgumentNullException(nameof(Settings.DatabaseName));
-            _collectionCreator = new CosmosCollectionCreator(CosmonautClient);
+            _collectionCreator = new CosmosCollectionCreator(CosmonautClient, settings.EntityConfigurationProvider);
             _databaseCreator = new CosmosDatabaseCreator(CosmonautClient);
             InitialiseCosmosStore(overriddenCollectionName);
         }
@@ -46,7 +49,7 @@ namespace Cosmonaut
         public CosmosStore(ICosmonautClient cosmonautClient,
             string databaseName) : this(cosmonautClient, databaseName, string.Empty,
             new CosmosDatabaseCreator(cosmonautClient),
-            new CosmosCollectionCreator(cosmonautClient))
+            new CosmosCollectionCreator(cosmonautClient, null))
         {
         }
 
@@ -69,12 +72,16 @@ namespace Cosmonaut
             DatabaseName = databaseName;
             CosmonautClient = cosmonautClient ?? throw new ArgumentNullException(nameof(cosmonautClient));
             Settings = new CosmosStoreSettings(databaseName, cosmonautClient.DocumentClient.ServiceEndpoint.ToString(), string.Empty, cosmonautClient.DocumentClient.ConnectionPolicy);
+
             if (Settings.InfiniteRetries)
                 CosmonautClient.DocumentClient.SetupInfiniteRetries();
+
             if (string.IsNullOrEmpty(Settings.DatabaseName)) throw new ArgumentNullException(nameof(Settings.DatabaseName));
-            _collectionCreator = collectionCreator ?? new CosmosCollectionCreator(CosmonautClient);
+
+            _collectionCreator = collectionCreator ?? new CosmosCollectionCreator(CosmonautClient, Settings.EntityConfigurationProvider);
             _databaseCreator = databaseCreator ?? new CosmosDatabaseCreator(CosmonautClient);
-            InitialiseCosmosStore(overriddenCollectionName);
+
+            EntityCollectionMapping = InitialiseCosmosStore(overriddenCollectionName);
         }
 
         public IQueryable<TEntity> Query(FeedOptions feedOptions = null)
@@ -82,40 +89,40 @@ namespace Cosmonaut
             var queryable =
                 CosmonautClient.Query<TEntity>(DatabaseName, CollectionName, GetFeedOptionsForQuery(feedOptions));
 
-            return IsShared ? queryable.Where(ExpressionExtensions.SharedCollectionExpression<TEntity>()) : queryable;
+            return IsShared ? queryable.Where(EntityCollectionMapping.SharedCollectionExpression<TEntity>()) : queryable;
         }
 
         public IQueryable<TEntity> Query(string sql, object parameters = null, FeedOptions feedOptions = null,
             CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             return CosmonautClient.Query<TEntity>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
         }
 
         public async Task<TEntity> QuerySingleAsync(string sql, object parameters = null, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<TEntity>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.SingleOrDefaultAsync(cancellationToken);
         }
 
         public async Task<T> QuerySingleAsync<T>(string sql, object parameters = null, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<T>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.SingleOrDefaultAsync(cancellationToken);
         }
         
         public async Task<IEnumerable<TEntity>> QueryMultipleAsync(string sql, object parameters = null, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<TEntity>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.ToListAsync(cancellationToken);
         }
 
         public async Task<IEnumerable<T>> QueryMultipleAsync<T>(string sql, object parameters = null, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<T>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.ToListAsync(cancellationToken);
         }
@@ -123,34 +130,34 @@ namespace Cosmonaut
         public IQueryable<TEntity> Query(string sql, IDictionary<string, object> parameters, FeedOptions feedOptions = null,
             CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             return CosmonautClient.Query<TEntity>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
         }
 
         public async Task<TEntity> QuerySingleAsync(string sql, IDictionary<string, object> parameters, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<TEntity>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.SingleOrDefaultAsync(cancellationToken);
         }
 
         public async Task<T> QuerySingleAsync<T>(string sql, IDictionary<string, object> parameters, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<T>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.SingleOrDefaultAsync(cancellationToken);
         }
 
         public async Task<IEnumerable<TEntity>> QueryMultipleAsync(string sql, IDictionary<string, object> parameters, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<TEntity>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.ToListAsync(cancellationToken);
         }
 
         public async Task<IEnumerable<T>> QueryMultipleAsync<T>(string sql, IDictionary<string, object> parameters, FeedOptions feedOptions = null, CancellationToken cancellationToken = default)
         {
-            var collectionSharingFriendlySql = sql.EnsureQueryIsCollectionSharingFriendly<TEntity>();
+            var collectionSharingFriendlySql = EntityCollectionMapping.EnsureQueryIsCollectionSharingFriendly(sql);
             var queryable = CosmonautClient.Query<T>(DatabaseName, CollectionName, collectionSharingFriendlySql, parameters, GetFeedOptionsForQuery(feedOptions));
             return await queryable.ToListAsync(cancellationToken);
         }
@@ -254,23 +261,18 @@ namespace Cosmonaut
             return databaseCreated && collectionCreated;
         }
         
-        private void InitialiseCosmosStore(string overridenCollectionName)
+        private EntityCollectionMapping InitialiseCosmosStore(string overridenCollectionName)
         {
-            IsShared = typeof(TEntity).UsesSharedCollection();
-            CollectionName = GetCosmosStoreCollectionName(overridenCollectionName);
+            var collectionInfo = Settings.EntityConfigurationProvider.GetEntityCollectionMapping<TEntity>();
+
+            CollectionName = collectionInfo.GetCosmosStoreCollectionName(Settings.CollectionPrefix, overridenCollectionName);
 
             if (Settings.ProvisionInfrastructureIfMissing)
             {
                 EnsureInfrastructureProvisionedAsync().GetAwaiter().GetResult();
             }
-        }
 
-        private string GetCosmosStoreCollectionName(string overridenCollectionName)
-        {
-            var hasOverridenName = !string.IsNullOrEmpty(overridenCollectionName);
-            return IsShared
-                ? $"{Settings.CollectionPrefix ?? string.Empty}{(hasOverridenName ? overridenCollectionName : typeof(TEntity).GetSharedCollectionName())}"
-                : $"{Settings.CollectionPrefix ?? string.Empty}{(hasOverridenName ? overridenCollectionName : typeof(TEntity).GetCollectionName())}";
+            return collectionInfo;
         }
 
         private async Task<CosmosMultipleResponse<TEntity>> ExecuteMultiOperationAsync(IEnumerable<TEntity> entities,

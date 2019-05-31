@@ -1,5 +1,6 @@
 ﻿using System;
 using Cosmonaut.Configuration;
+using Cosmonaut.Extensions;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json;
@@ -33,6 +34,9 @@ namespace Cosmonaut
         public string CollectionPrefix { get; set; } = string.Empty;
 
         public bool ProvisionInfrastructureIfMissing { get; set; } = true;
+
+        public IEntityConfigurationProvider EntityConfigurationProvider { get; set; } =
+            DefaultEntityConfigurationProvider.Instance;
 
         public CosmosStoreSettings(string databaseName,
             string endpointUrl,

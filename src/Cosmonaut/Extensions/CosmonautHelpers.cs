@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Documents;
+﻿using Cosmonaut.Configuration;
+using Microsoft.Azure.Documents;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -6,8 +7,13 @@ namespace Cosmonaut.Extensions
 {
     public static class CosmonautHelpers
     {
-        public static Document ToCosmonautDocument<TEntity>(this TEntity obj) where TEntity : class
+        public static Document ToCosmonautDocument<TEntity>(this TEntity obj, EntityCollectionMapping collectionMapping = null) where TEntity : class
         {
+            if (collectionMapping == null)
+            {
+                collectionMapping = DefaultEntityConfigurationProvider.Instance.GetEntityCollectionMapping<TEntity>();
+            }
+
             obj.ValidateEntityForCosmosDb();
             var document = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(obj));
 
@@ -18,8 +24,8 @@ namespace Cosmonaut.Extensions
                 actualDocument.Id = obj.GetDocumentId();
                 RemoveDuplicateIds(ref actualDocument);
 
-                if (typeof(TEntity).UsesSharedCollection())
-                    actualDocument.SetPropertyValue(nameof(ISharedCosmosEntity.CosmosEntityName), $"{typeof(TEntity).GetSharedCollectionEntityName()}");
+                if (collectionMapping.IsShared)
+                    actualDocument.SetPropertyValue(nameof(ISharedCosmosEntity.CosmosEntityName), collectionMapping.SharedCollectionEntityName);
 
                 return actualDocument;
             }

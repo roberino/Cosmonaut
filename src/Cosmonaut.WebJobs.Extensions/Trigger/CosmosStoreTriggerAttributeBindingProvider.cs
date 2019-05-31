@@ -1,7 +1,4 @@
-﻿using System;
-using System.Reflection;
-using System.Threading.Tasks;
-using Cosmonaut.Extensions;
+﻿using Cosmonaut.Configuration;
 using Cosmonaut.WebJobs.Extensions.Config;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.ChangeFeedProcessor;
@@ -12,6 +9,9 @@ using Microsoft.Azure.WebJobs.Host.Triggers;
 using Microsoft.Azure.WebJobs.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Cosmonaut.WebJobs.Extensions.Trigger
 {
@@ -170,10 +170,9 @@ namespace Cosmonaut.WebJobs.Extensions.Trigger
             if (!string.IsNullOrEmpty(ResolveAttributeValue(attribute.CollectionName)))
                 return ResolveAttributeValue(attribute.CollectionName);
 
-            var entityType = typeof(T);
-            var isSharedCollection = entityType.UsesSharedCollection();
-
-            return isSharedCollection ? entityType.GetSharedCollectionName() : entityType.GetCollectionName();
+            var mapping = DefaultEntityConfigurationProvider.DefaultMapping<T>();
+            
+            return mapping.CollectionName;
         }
 
         internal static TimeSpan ResolveTimeSpanFromMilliseconds(string nameOfProperty, TimeSpan baseTimeSpan, int? attributeValue)
@@ -254,10 +253,11 @@ namespace Cosmonaut.WebJobs.Extensions.Trigger
         private ChangeFeedProcessorOptions BuildProcessorOptions(CosmosStoreTriggerAttribute attribute)
         {
             var leasesOptions = _bindingOptions.LeaseOptions;
-            var entityType = typeof(T);
+            var mapping = DefaultEntityConfigurationProvider.DefaultMapping<T>();
+
             var processorOptions = new ChangeFeedProcessorOptions
             {
-                LeasePrefix = ResolveAttributeValue(attribute.LeaseCollectionPrefix) ?? (entityType.UsesSharedCollection() ? $"{entityType.GetSharedCollectionName()}_{entityType.GetSharedCollectionEntityName()}_" : $"{entityType.GetCollectionName()}_"),
+                LeasePrefix = ResolveAttributeValue(attribute.LeaseCollectionPrefix) ?? (mapping.IsShared ? $"{mapping.CollectionName}_{mapping.SharedCollectionEntityName}_" : $"{mapping.CollectionName}_"),
                 FeedPollDelay = ResolveTimeSpanFromMilliseconds(nameof(CosmosStoreTriggerAttribute.FeedPollDelay), leasesOptions.FeedPollDelay, attribute.FeedPollDelay),
                 LeaseAcquireInterval = ResolveTimeSpanFromMilliseconds(nameof(CosmosStoreTriggerAttribute.LeaseAcquireInterval), leasesOptions.LeaseAcquireInterval, attribute.LeaseAcquireInterval),
                 LeaseExpirationInterval = ResolveTimeSpanFromMilliseconds(nameof(CosmosStoreTriggerAttribute.LeaseExpirationInterval), leasesOptions.LeaseExpirationInterval, attribute.LeaseExpirationInterval),
