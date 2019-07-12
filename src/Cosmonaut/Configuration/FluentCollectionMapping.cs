@@ -94,6 +94,11 @@ namespace Cosmonaut.Configuration
 
         private FluentCollectionMapping<TEntity> SetPartition(string name)
         {
+            if (!name.StartsWith("/"))
+            {
+                name = $"/{name}";
+            }
+
             var pk = new PartitionKeyDefinition()
             {
                 Paths = new Collection<string>(new[] {name})

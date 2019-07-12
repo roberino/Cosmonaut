@@ -23,7 +23,7 @@ namespace Cosmonaut.Unit
 
             mapping.IsShared.Should().BeFalse();
             mapping.CollectionName.Should().Be("CollectionX");
-            mapping.PartitionKeyDefinition.Paths.Single().Should().Be(nameof(MyEntity.MyPartitionKey));
+            mapping.PartitionKeyDefinition.Paths.Single().Should().Be($"/{nameof(MyEntity.MyPartitionKey)}");
         }
 
         public class MyEntity
