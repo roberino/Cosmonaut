@@ -52,12 +52,17 @@ namespace Cosmonaut.Configuration
 
             public EntityCollectionMapping GetEntityCollectionMapping(Type entityType)
             {
-                if (Mappings.TryGetValue(entityType, out var val))
+                if (!Mappings.TryGetValue(entityType, out var val))
+                    return baseProvider.GetEntityCollectionMapping(entityType);
+
+                if (!string.IsNullOrEmpty(val.CollectionName))
                 {
                     return val;
                 }
 
-                return baseProvider.GetEntityCollectionMapping(entityType);
+                var defaultMapping = baseProvider.GetEntityCollectionMapping(entityType);
+
+                return new EntityCollectionMapping(entityType, val.PartitionKeyDefinition, defaultMapping.CollectionName, defaultMapping.SharedCollectionEntityName);
             }
         }
     }

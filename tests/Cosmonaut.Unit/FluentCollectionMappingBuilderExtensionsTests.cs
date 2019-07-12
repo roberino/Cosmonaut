@@ -14,13 +14,14 @@ namespace Cosmonaut.Unit
 
             settings.ConfigureMappings(m =>
             {
-                m.Configure<MyEntity1>(c => c
-                    .WithCollection("CollectionX", false)
-                    .WithPartition(x => x.MyPartitionKey1));
+                m
+                    .Configure<MyEntity1>(c => c
+                        .WithCollection("CollectionX", false)
+                        .WithPartition(x => x.MyPartitionKey1))
 
-                m.Configure<MyEntity2>(c => c
-                    .WithCollection("CollectionY", false)
-                    .WithPartition(x => x.MyPartitionKey2));
+                    .Configure<MyEntity2>(c => c
+                        .WithCollection("CollectionY", false)
+                        .WithPartition(x => x.MyPartitionKey2));
             });
 
             settings.EntityConfigurationProvider.GetEntityCollectionMapping<MyEntity1>().CollectionName.Should()
