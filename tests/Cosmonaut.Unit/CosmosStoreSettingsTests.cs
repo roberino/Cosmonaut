@@ -61,6 +61,7 @@ namespace Cosmonaut.Unit
             settings.ConsistencyLevel.Should().BeNull();
             settings.IndexingPolicy.Should().Be(CosmosConstants.DefaultIndexingPolicy);
             settings.DefaultCollectionThroughput.Should().Be(CosmosConstants.MinimumCosmosThroughput);
+            settings.UniqueKeyPolicy.Should().Be(CosmosConstants.DefaultUniqueKeyPolicy);
         }
 
         [Fact]
@@ -77,6 +78,7 @@ namespace Cosmonaut.Unit
             settings.ConsistencyLevel.Should().BeNull();
             settings.IndexingPolicy.Should().Be(CosmosConstants.DefaultIndexingPolicy);
             settings.DefaultCollectionThroughput.Should().Be(CosmosConstants.MinimumCosmosThroughput);
+            settings.UniqueKeyPolicy.Should().Be(CosmosConstants.DefaultUniqueKeyPolicy);
         }
 
         [Fact]
@@ -89,6 +91,7 @@ namespace Cosmonaut.Unit
                 setting.IndexingPolicy = new IndexingPolicy();
                 setting.ConsistencyLevel = ConsistencyLevel.Eventual;
                 setting.ConnectionPolicy = ConnectionPolicy.Default;
+                setting.UniqueKeyPolicy = new UniqueKeyPolicy();
             });
 
             // Act & Assert
@@ -99,6 +102,7 @@ namespace Cosmonaut.Unit
             settings.ConsistencyLevel.Should().BeEquivalentTo(ConsistencyLevel.Eventual);
             settings.IndexingPolicy.Should().NotBeNull();
             settings.DefaultCollectionThroughput.Should().Be(5000);
+            settings.UniqueKeyPolicy.Should().NotBeNull();
         }
     }
 }
