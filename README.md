@@ -69,7 +69,7 @@ var user = await cosmosStore.FindAsync("userId", new RequestOptions());
 ##### Querying for entities using LINQ
 
 In order to query for entities all you have to do is call the `.Query()` method and then use LINQ to create the query you want.
-It is HIGHLY recommended that you use one of the `Async` methods to get the results back, such as `ToListAsync` or `FirstOrDefaultAsync` , when available.
+It is HIGHLY recommended that you use one of the `Async` extension methods to get the results back, such as `ToListAsync` or `FirstOrDefaultAsync` , when available.
 
 ```csharp
 var user = await cosmoStore.Query().FirstOrDefaultAsync(x => x.Username == "elfocrash");
