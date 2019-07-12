@@ -1,9 +1,8 @@
-﻿using System;
-using Cosmonaut.Configuration;
-using Cosmonaut.Extensions;
+﻿using Cosmonaut.Configuration;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json;
+using System;
 
 namespace Cosmonaut
 {

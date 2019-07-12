@@ -7,11 +7,22 @@ using System.Linq.Expressions;
 
 namespace Cosmonaut.Configuration
 {
-    public sealed class FluentCollectionMappingBuilder
+    public interface IFluentCollectionMappingBuilder
     {
-        private readonly ProviderImpl provider = new ProviderImpl();
+        IFluentCollectionMappingBuilder Configure<TEntity>(Action<FluentCollectionMapping<TEntity>> config)
+            where TEntity : class;
+    }
 
-        public FluentCollectionMappingBuilder Configure<TEntity>(Action<FluentCollectionMapping<TEntity>> config)
+    internal sealed class FluentCollectionMappingBuilder : IFluentCollectionMappingBuilder
+    {
+        private readonly ProviderImpl provider;
+
+        public FluentCollectionMappingBuilder(IEntityConfigurationProvider baseProvider = null)
+        {
+            provider = new ProviderImpl(baseProvider ?? DefaultEntityConfigurationProvider.Instance);
+        }
+
+        public IFluentCollectionMappingBuilder Configure<TEntity>(Action<FluentCollectionMapping<TEntity>> config)
             where TEntity : class
         {
             var mapper = new FluentCollectionMapping<TEntity>();
@@ -27,7 +38,14 @@ namespace Cosmonaut.Configuration
 
         private class ProviderImpl : IEntityConfigurationProvider
         {
+            private readonly IEntityConfigurationProvider baseProvider;
+
             public IDictionary<Type, EntityCollectionMapping> Mappings { get; } = new Dictionary<Type, EntityCollectionMapping>();
+
+            public ProviderImpl(IEntityConfigurationProvider baseProvider)
+            {
+                this.baseProvider = baseProvider;
+            }
 
             public EntityCollectionMapping GetEntityCollectionMapping<TEntity>() =>
                 GetEntityCollectionMapping(typeof(TEntity));
@@ -39,7 +57,7 @@ namespace Cosmonaut.Configuration
                     return val;
                 }
 
-                return DefaultEntityConfigurationProvider.DefaultMapping(entityType);
+                return baseProvider.GetEntityCollectionMapping(entityType);
             }
         }
     }

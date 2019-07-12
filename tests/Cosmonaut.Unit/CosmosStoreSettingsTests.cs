@@ -1,4 +1,5 @@
 ﻿using System;
+using Cosmonaut.Configuration;
 using FluentAssertions;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
@@ -29,6 +30,19 @@ namespace Cosmonaut.Unit
 
             // Assert
             Assert.Equal(expectedUri, settings.EndpointUrl);
+        }
+
+        [Fact]
+        public void CosmosStoreSettings_Defaults_UsesDefaultEntityConfigurationProvider()
+        { 
+            // Arrange
+            var endpointUri = new Uri("http://test.com");
+
+            // Act
+            var settings = new CosmosStoreSettings("dbName", endpointUri, "key");
+
+            // Assert
+            settings.EntityConfigurationProvider.Should().BeOfType<DefaultEntityConfigurationProvider>();
         }
 
         [Fact]
